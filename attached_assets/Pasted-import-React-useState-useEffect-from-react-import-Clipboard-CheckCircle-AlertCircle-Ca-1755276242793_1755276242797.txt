@@ -1,0 +1,1483 @@
+import React, { useState, useEffect } from 'react';
+import { Clipboard, CheckCircle, AlertCircle, Car, Calendar, User, Clock, FileText, Trash2, Edit, Plus, Save, X, Shield, Heart, AlertTriangle } from 'lucide-react';
+
+// Define types for our data structures
+interface InspectionItem {
+  id: string;
+  name: string;
+  status: 'pass' | 'fail' | 'not-checked';
+  notes?: string;
+  category: 'technical' | 'safety' | 'legal';
+}
+
+interface VehicleInspection {
+  id: string;
+  date: string;
+  vehicleId: string;
+  inspector: string;
+  startTime: string;
+  endTime?: string;
+  items: InspectionItem[];
+  notes?: string;
+  completed: boolean;
+}
+
+interface Vehicle {
+  id: string;
+  name: string;
+  licensePlate: string;
+  type: string;
+  soatExpiry?: string;
+  rtmExpiry?: string;
+}
+
+function App() {
+  // Sample inspection checklist items with categories
+  const defaultInspectionItems: InspectionItem[] = [
+    // Technical-Mechanical Items
+    { id: '1', name: 'Luces delanteras', status: 'not-checked', category: 'technical' },
+    { id: '2', name: 'Luces traseras', status: 'not-checked', category: 'technical' },
+    { id: '3', name: 'Luces de freno', status: 'not-checked', category: 'technical' },
+    { id: '4', name: 'Luces intermitentes', status: 'not-checked', category: 'technical' },
+    { id: '5', name: 'Alarma de reversa', status: 'not-checked', category: 'technical'},
+    { id: '6', name: 'Estado de las llantas', status: 'not-checked', category: 'technical' },
+    { id: '7', name: 'Estado de fugas en general', status: 'not-checked', category: 'technical'},
+    { id: '8', name: 'Estado de los mandos hidraulicos (Compactadores)', status: 'not-checked', category: 'technical'},
+    { id: '9', name: 'Nivel de combustible', status: 'not-checked', category: 'technical' },
+    { id: '10', name: 'Nivel de aceite hidraulico', status: 'not-checked', category: 'technical' },
+    { id: '11', name: 'Nivel de aceite motor', status: 'not-checked', category: 'technical' },
+    { id: '12', name: 'Nivel de refrigerante', status: 'not-checked', category: 'technical' },
+    { id: '13', name: 'Nivel de líquido de frenos', status: 'not-checked', category: 'technical' },
+    { id: '14', name: 'Nivel de líquido limpiaparabrisas', status: 'not-checked', category: 'technical' },
+    { id: '15', name: 'Frenos', status: 'not-checked', category: 'technical' },
+    { id: '16', name: 'Cinturones de seguridad', status: 'not-checked', category: 'technical' },
+    { id: '17', name: 'Bocina', status: 'not-checked', category: 'technical' },
+    { id: '18', name: 'Limpiaparabrisas', status: 'not-checked', category: 'technical' },
+    { id: '19', name: 'Espejos', status: 'not-checked', category: 'technical' },
+    { id: '20', name: 'Llanta de repuesto', status: 'not-checked', category: 'technical' },
+    { id: '21', name: 'Caja de herramientas básicas', status: 'not-checked', category: 'technical' },
+    
+    // Safety and First Aid Kit Items
+    { id: '22', name: 'Botiquín', status: 'not-checked', category: 'safety' },
+    { id: '23', name: 'Guantes anticorte', status: 'not-checked', category: 'safety' },
+    { id: '24', name: 'Conos de seguridad', status: 'not-checked', category: 'safety' },
+    { id: '25', name: 'Extintor', status: 'not-checked', category: 'safety' },
+    { id: '26', name: 'Linterna', status: 'not-checked', category: 'safety' },
+    
+    // Legal Documentation Items
+    { id: '27', name: 'SOAT vigente', status: 'not-checked', category: 'legal' },
+    { id: '28', name: 'RTM vigente', status: 'not-checked', category: 'legal' },
+    { id: '29', name: 'Licencia de conducir vigente', status: 'not-checked', category: 'legal' },
+    { id: '30', name: 'Tarjeta de propiedad', status: 'not-checked', category: 'legal' },
+  ];
+
+  // Sample vehicles with SOAT and RTM dates
+  const sampleVehicles: Vehicle[] = [
+    { id: '1', name: 'Chevrolet C70', licensePlate: 'LHJ747', type: 'Camion', soatExpiry: '2025-09-27', rtmExpiry: '2025-06-20' },
+    { id: '2', name: 'Volkswagen', licensePlate: 'TDY440', type: 'Camion', soatExpiry: '2025-09-27', rtmExpiry: '2026-03-10' },
+    { id: '3', name: 'International', licensePlate: 'OMG782', type: 'Camion', soatExpiry: '2026-01-24', rtmExpiry: '2025-08-25' },
+    { id: '4', name: 'Chevrolet NPR', licensePlate: 'OMK279', type: 'Camion', soatExpiry: '2025-08-15', rtmExpiry: '2026-01-03' },
+    { id: '5', name: 'Chevrolet NPR', licensePlate: 'TTY231', type: 'Camion', soatExpiry: '2026-06-16', rtmExpiry: '2025-06-19' },
+    { id: '6', name: 'Chevrolet C70', licensePlate: 'KEG277', type: 'Volqueta', soatExpiry: '2025-12-28', rtmExpiry: '2026-02-22' },
+    { id: '7', name: 'Chevrolet C70', licensePlate: 'LHI938', type: 'Volqueta', soatExpiry: '2025-09-30', rtmExpiry: '2025-10-01' },
+    { id: '8', name: 'Vaisand', licensePlate: '831AEV', type: 'Motocarguero', soatExpiry: '2025-10-11', rtmExpiry: '2025-10-11' },
+  ];
+
+  // State management
+  const [view, setView] = useState<'list' | 'new' | 'detail' | 'vehicles' | 'documents'>('list');
+  const [vehicles, setVehicles] = useState<Vehicle[]>(sampleVehicles);
+  const [inspections, setInspections] = useState<VehicleInspection[]>([]);
+  const [currentInspection, setCurrentInspection] = useState<VehicleInspection | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [newVehicle, setNewVehicle] = useState<Vehicle>({ id: '', name: '', licensePlate: '', type: '', soatExpiry: '', rtmExpiry: '' });
+  const [inspectorName, setInspectorName] = useState<string>('Inspector');
+
+  // Load data from localStorage on component mount
+  useEffect(() => {
+    const savedInspections = localStorage.getItem('inspections');
+    if (savedInspections) {
+      setInspections(JSON.parse(savedInspections));
+    }
+
+    const savedVehicles = localStorage.getItem('vehicles');
+    if (savedVehicles) {
+      setVehicles(JSON.parse(savedVehicles));
+    }
+
+    const savedInspector = localStorage.getItem('inspectorName');
+    if (savedInspector) {
+      setInspectorName(savedInspector);
+    }
+  }, []);
+
+  // Save data to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('inspections', JSON.stringify(inspections));
+  }, [inspections]);
+
+  useEffect(() => {
+    localStorage.setItem('vehicles', JSON.stringify(vehicles));
+  }, [vehicles]);
+
+  useEffect(() => {
+    localStorage.setItem('inspectorName', inspectorName);
+  }, [inspectorName]);
+
+  // Check if a document is expired or expiring soon
+  const getDocumentStatus = (expiryDate?: string) => {
+    if (!expiryDate) return { status: 'missing', daysLeft: 0 };
+    
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+    const diffTime = expiry.getTime() - today.getTime();
+    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (daysLeft < 0) return { status: 'expired', daysLeft };
+    if (daysLeft <= 30) return { status: 'expiring', daysLeft };
+    return { status: 'valid', daysLeft };
+  };
+
+  // Get expired or expiring documents
+  const getDocumentAlerts = () => {
+    const alerts: Array<{vehicleId: string, vehicleName: string, licensePlate: string, document: string, status: string, daysLeft: number}> = [];
+    
+    vehicles.forEach(vehicle => {
+      const soatStatus = getDocumentStatus(vehicle.soatExpiry);
+      const rtmStatus = getDocumentStatus(vehicle.rtmExpiry);
+      
+      if (soatStatus.status === 'expired' || soatStatus.status === 'expiring') {
+        alerts.push({
+          vehicleId: vehicle.id,
+          vehicleName: vehicle.name,
+          licensePlate: vehicle.licensePlate,
+          document: 'SOAT',
+          status: soatStatus.status,
+          daysLeft: soatStatus.daysLeft
+        });
+      }
+      
+      if (rtmStatus.status === 'expired' || rtmStatus.status === 'expiring') {
+        alerts.push({
+          vehicleId: vehicle.id,
+          vehicleName: vehicle.name,
+          licensePlate: vehicle.licensePlate,
+          document: 'RTM',
+          status: rtmStatus.status,
+          daysLeft: rtmStatus.daysLeft
+        });
+      }
+    });
+    
+    return alerts;
+  };
+
+  // Start a new inspection
+  const startNewInspection = () => {
+    if (!selectedVehicleId) return;
+
+    const now = new Date();
+    const newInspection: VehicleInspection = {
+      id: Date.now().toString(),
+      date: now.toISOString().split('T')[0],
+      vehicleId: selectedVehicleId,
+      inspector: inspectorName,
+      startTime: now.toTimeString().split(' ')[0],
+      items: [...defaultInspectionItems],
+      completed: false,
+    };
+
+    setCurrentInspection(newInspection);
+    setView('new');
+  };
+
+  // Update an inspection item's status
+  const updateItemStatus = (itemId: string, status: 'pass' | 'fail' | 'not-checked') => {
+    if (!currentInspection) return;
+
+    const updatedItems = currentInspection.items.map(item => 
+      item.id === itemId ? { ...item, status } : item
+    );
+
+    setCurrentInspection({
+      ...currentInspection,
+      items: updatedItems,
+    });
+  };
+
+  // Update an inspection item's notes
+  const updateItemNotes = (itemId: string, notes: string) => {
+    if (!currentInspection) return;
+
+    const updatedItems = currentInspection.items.map(item => 
+      item.id === itemId ? { ...item, notes } : item
+    );
+
+    setCurrentInspection({
+      ...currentInspection,
+      items: updatedItems,
+    });
+  };
+
+  // Complete the current inspection
+  const completeInspection = () => {
+    if (!currentInspection) return;
+
+    const now = new Date();
+    const completedInspection: VehicleInspection = {
+      ...currentInspection,
+      endTime: now.toTimeString().split(' ')[0],
+      completed: true,
+    };
+
+    setInspections([completedInspection, ...inspections]);
+    setCurrentInspection(null);
+    setView('list');
+  };
+
+  // View an inspection's details
+  const viewInspectionDetails = (inspectionId: string) => {
+    const inspection = inspections.find(insp => insp.id === inspectionId);
+    if (inspection) {
+      setCurrentInspection(inspection);
+      setView('detail');
+    }
+  };
+
+  // Delete an inspection
+  const deleteInspection = (inspectionId: string) => {
+    if (window.confirm('¿Está seguro de que desea eliminar esta inspección?')) {
+      const updatedInspections = inspections.filter(insp => insp.id !== inspectionId);
+      setInspections(updatedInspections);
+    }
+  };
+
+  // Add a new vehicle
+  const addVehicle = () => {
+    if (!newVehicle.name || !newVehicle.licensePlate || !newVehicle.type) {
+      alert('Por favor complete todos los campos obligatorios');
+      return;
+    }
+
+    const vehicleWithSamePlate = vehicles.find(v => v.licensePlate.toLowerCase() === newVehicle.licensePlate.toLowerCase());
+    if (vehicleWithSamePlate) {
+      alert('Ya existe un vehículo con esta placa');
+      return;
+    }
+
+    const newVehicleWithId = {
+      ...newVehicle,
+      id: Date.now().toString(),
+    };
+
+    setVehicles([...vehicles, newVehicleWithId]);
+    setNewVehicle({ id: '', name: '', licensePlate: '', type: '', soatExpiry: '', rtmExpiry: '' });
+  };
+
+  // Update an existing vehicle
+  const updateVehicle = () => {
+    if (!editingVehicle) return;
+    
+    if (!editingVehicle.name || !editingVehicle.licensePlate || !editingVehicle.type) {
+      alert('Por favor complete todos los campos obligatorios');
+      return;
+    }
+
+    const vehicleWithSamePlate = vehicles.find(
+      v => v.licensePlate.toLowerCase() === editingVehicle.licensePlate.toLowerCase() && v.id !== editingVehicle.id
+    );
+    
+    if (vehicleWithSamePlate) {
+      alert('Ya existe un vehículo con esta placa');
+      return;
+    }
+
+    const updatedVehicles = vehicles.map(vehicle => 
+      vehicle.id === editingVehicle.id ? editingVehicle : vehicle
+    );
+
+    setVehicles(updatedVehicles);
+    setEditingVehicle(null);
+  };
+
+  // Delete a vehicle
+  const deleteVehicle = (vehicleId: string) => {
+    // Check if the vehicle is used in any inspection
+    const vehicleInUse = inspections.some(inspection => inspection.vehicleId === vehicleId);
+    
+    if (vehicleInUse) {
+      alert('No se puede eliminar este vehículo porque tiene inspecciones asociadas');
+      return;
+    }
+
+    if (window.confirm('¿Está seguro de que desea eliminar este vehículo?')) {
+      const updatedVehicles = vehicles.filter(vehicle => vehicle.id !== vehicleId);
+      setVehicles(updatedVehicles);
+    }
+  };
+
+  // Get vehicle name by ID
+  const getVehicleName = (vehicleId: string): string => {
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    return vehicle ? vehicle.name : 'Vehículo desconocido';
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string): string => {
+    const options: Intl.DateTimeFormatOptions = { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    return new Date(dateString).toLocaleDateString('es-ES', options);
+  };
+
+  // Render document alerts
+  const renderDocumentAlerts = () => {
+    const alerts = getDocumentAlerts();
+    
+    if (alerts.length === 0) return null;
+
+    return (
+      <div className="mb-6 bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="flex items-center">
+            <AlertTriangle className="h-6 w-6 text-red-400 mr-3" />
+            <h3 className="text-lg font-medium text-red-800">Alertas de Documentos</h3>
+          </div>
+        </div>
+        <div className="p-4">
+          <div className="space-y-3">
+            {alerts.map((alert, index) => (
+              <div key={index} className={`p-3 rounded-md border-l-4 ${
+                alert.status === 'expired' 
+                  ? 'bg-red-50 border-red-400' 
+                  : 'bg-yellow-50 border-yellow-400'
+              }`}>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className={`font-medium ${
+                      alert.status === 'expired' ? 'text-red-800' : 'text-yellow-800'
+                    }`}>
+                      {alert.vehicleName} ({alert.licensePlate}) - {alert.document}
+                    </p>
+                    <p className={`text-sm ${
+                      alert.status === 'expired' ? 'text-red-600' : 'text-yellow-600'
+                    }`}>
+                      {alert.status === 'expired' 
+                        ? `Vencido hace ${Math.abs(alert.daysLeft)} días`
+                        : `Vence en ${alert.daysLeft} días`
+                      }
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setView('documents')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium ${
+                      alert.status === 'expired'
+                        ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                        : 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                    }`}
+                  >
+                    Actualizar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render the list of inspections
+  const renderInspectionsList = () => (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Inspecciones de Vehículos</h1>
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={() => setView('documents')}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          >
+            <Shield className="mr-2 h-5 w-5" />
+            Documentos
+          </button>
+          <button 
+            onClick={() => setView('vehicles')}
+            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          >
+            <Car className="mr-2 h-5 w-5" />
+            Gestionar Vehículos
+          </button>
+          <div className="flex items-center">
+            <select 
+              className="mr-2 p-2 border rounded-md"
+              value={selectedVehicleId}
+              onChange={(e) => setSelectedVehicleId(e.target.value)}
+            >
+              <option value="">Seleccionar vehículo</option>
+              {vehicles.map(vehicle => (
+                <option key={vehicle.id} value={vehicle.id}>
+                  {vehicle.name} ({vehicle.licensePlate})
+                </option>
+              ))}
+            </select>
+            <button 
+              onClick={startNewInspection}
+              disabled={!selectedVehicleId}
+              className={`flex items-center px-4 py-2 rounded-md ${
+                selectedVehicleId 
+                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              <Clipboard className="mr-2 h-5 w-5" />
+              Nueva Inspección
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 bg-white p-4 rounded-lg shadow-md">
+        <div className="flex items-center">
+          <label htmlFor="inspectorName" className="mr-2 font-medium">Nombre del Inspector:</label>
+          <input
+            type="text"
+            id="inspectorName"
+            value={inspectorName}
+            onChange={(e) => setInspectorName(e.target.value)}
+            className="border rounded-md p-2 flex-grow"
+            placeholder="Ingrese el nombre del inspector"
+          />
+        </div>
+      </div>
+
+      {renderDocumentAlerts()}
+
+      {inspections.length === 0 ? (
+        <div className="text-center py-10 bg-gray-50 rounded-lg">
+          <p className="text-gray-500">No hay inspecciones registradas.</p>
+          <p className="text-gray-500 mt-2">Seleccione un vehículo y haga clic en "Nueva Inspección" para comenzar.</p>
+        </div>
+      ) : (
+        <div className="bg-white shadow-md rounded-lg overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehículo</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inspector</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {inspections.map(inspection => (
+                <tr key={inspection.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(inspection.date)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {getVehicleName(inspection.vehicleId)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {inspection.inspector}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      inspection.completed 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {inspection.completed ? 'Completada' : 'En progreso'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => viewInspectionDetails(inspection.id)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        Ver detalles
+                      </button>
+                      <button 
+                        onClick={() => deleteInspection(inspection.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+
+  // Render the new inspection form
+  const renderNewInspection = () => {
+    if (!currentInspection) return null;
+
+    const vehicle = vehicles.find(v => v.id === currentInspection.vehicleId);
+    const technicalItems = currentInspection.items.filter(item => item.category === 'technical');
+    const safetyItems = currentInspection.items.filter(item => item.category === 'safety');
+    const legalItems = currentInspection.items.filter(item => item.category === 'legal');
+    
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Nueva Inspección</h1>
+          <button 
+            onClick={() => setView('list')}
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+        </div>
+
+        <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <h2 className="text-lg font-medium text-gray-900 mb-2">Información del Vehículo</h2>
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <p className="flex items-center text-gray-700 mb-2">
+                    <Car className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Vehículo:</span> {vehicle?.name}
+                  </p>
+                  <p className="flex items-center text-gray-700 mb-2">
+                    <FileText className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Placa:</span> {vehicle?.licensePlate}
+                  </p>
+                  <p className="flex items-center text-gray-700">
+                    <FileText className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Tipo:</span> {vehicle?.type}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <h2 className="text-lg font-medium text-gray-900 mb-2">Información de la Inspección</h2>
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <p className="flex items-center text-gray-700 mb-2">
+                    <Calendar className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Fecha:</span> {formatDate(currentInspection.date)}
+                  </p>
+                  <p className="flex items-center text-gray-700 mb-2">
+                    <User className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Inspector:</span> {currentInspection.inspector}
+                  </p>
+                  <p className="flex items-center text-gray-700">
+                    <Clock className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Hora de inicio:</span> {currentInspection.startTime}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Technical-Mechanical Inspection */}
+            <div className="mb-8">
+              <div className="flex items-center mb-4">
+                <Car className="mr-2 h-6 w-6 text-blue-600" />
+                <h2 className="text-lg font-medium text-blue-800">Inspección Técnico-Mecánica</h2>
+              </div>
+              <div className="space-y-4 border-l-4 border-blue-200 pl-4">
+                {technicalItems.map(item => (
+                  <div key={item.id} className="border rounded-md p-4 bg-blue-50">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={() => updateItemStatus(item.id, 'pass')}
+                          className={`p-2 rounded-md ${
+                            item.status === 'pass' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-gray-100 text-gray-800 hover:bg-green-50'
+                          }`}
+                        >
+                          <CheckCircle className="h-5 w-5" />
+                        </button>
+                        <button 
+                          onClick={() => updateItemStatus(item.id, 'fail')}
+                          className={`p-2 rounded-md ${
+                            item.status === 'fail' 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-gray-100 text-gray-800 hover:bg-red-50'
+                          }`}
+                        >
+                          <AlertCircle className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                    {item.status === 'fail' && (
+                      <div className="mt-2">
+                        <label htmlFor={`notes-${item.id}`} className="block text-sm font-medium text-gray-700 mb-1">
+                          Notas (obligatorio para fallos)
+                        </label>
+                        <textarea
+                          id={`notes-${item.id}`}
+                          value={item.notes || ''}
+                          onChange={(e) => updateItemNotes(item.id, e.target.value)}
+                          className="w-full p-2 border rounded-md"
+                          placeholder="Describa el problema..."
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Safety and First Aid Kit Inspection */}
+            <div className="mb-8">
+              <div className="flex items-center mb-4">
+                <Heart className="mr-2 h-6 w-6 text-red-600" />
+                <h2 className="text-lg font-medium text-red-800">Inspección de Seguridad y Botiquín</h2>
+              </div>
+              <div className="space-y-4 border-l-4 border-red-200 pl-4">
+                {safetyItems.map(item => (
+                  <div key={item.id} className="border rounded-md p-4 bg-red-50">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={() => updateItemStatus(item.id, 'pass')}
+                          className={`p-2 rounded-md ${
+                            item.status === 'pass' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-gray-100 text-gray-800 hover:bg-green-50'
+                          }`}
+                        >
+                          <CheckCircle className="h-5 w-5" />
+                        </button>
+                        <button 
+                          onClick={() => updateItemStatus(item.id, 'fail')}
+                          className={`p-2 rounded-md ${
+                            item.status === 'fail' 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-gray-100 text-gray-800 hover:bg-red-50'
+                          }`}
+                        >
+                          <AlertCircle className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                    {item.status === 'fail' && (
+                      <div className="mt-2">
+                        <label htmlFor={`notes-${item.id}`} className="block text-sm font-medium text-gray-700 mb-1">
+                          Notas (obligatorio para fallos)
+                        </label>
+                        <textarea
+                          id={`notes-${item.id}`}
+                          value={item.notes || ''}
+                          onChange={(e) => updateItemNotes(item.id, e.target.value)}
+                          className="w-full p-2 border rounded-md"
+                          placeholder="Describa el problema..."
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Legal Documentation */}
+            <div className="mb-8">
+              <div className="flex items-center mb-4">
+                <Shield className="mr-2 h-6 w-6 text-green-600" />
+                <h2 className="text-lg font-medium text-green-800">Documentación Legal</h2>
+              </div>
+              <div className="space-y-4 border-l-4 border-green-200 pl-4">
+                {legalItems.map(item => (
+                  <div key={item.id} className="border rounded-md p-4 bg-green-50">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={() => updateItemStatus(item.id, 'pass')}
+                          className={`p-2 rounded-md ${
+                            item.status === 'pass' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-gray-100 text-gray-800 hover:bg-green-50'
+                          }`}
+                        >
+                          <CheckCircle className="h-5 w-5" />
+                        </button>
+                        <button 
+                          onClick={() => updateItemStatus(item.id, 'fail')}
+                          className={`p-2 rounded-md ${
+                            item.status === 'fail' 
+                              ? 'bg-red-100 text-red-800' 
+                              : 'bg-gray-100 text-gray-800 hover:bg-red-50'
+                          }`}
+                        >
+                          <AlertCircle className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                    {item.status === 'fail' && (
+                      <div className="mt-2">
+                        <label htmlFor={`notes-${item.id}`} className="block text-sm font-medium text-gray-700 mb-1">
+                          Notas (obligatorio para fallos)
+                        </label>
+                        <textarea
+                          id={`notes-${item.id}`}
+                          value={item.notes || ''}
+                          onChange={(e) => updateItemNotes(item.id, e.target.value)}
+                          className="w-full p-2 border rounded-md"
+                          placeholder="Describa el problema..."
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <label htmlFor="inspection-notes" className="block text-sm font-medium text-gray-700 mb-1">
+                Notas generales de la inspección
+              </label>
+              <textarea
+                id="inspection-notes"
+                value={currentInspection.notes || ''}
+                onChange={(e) => setCurrentInspection({...currentInspection, notes: e.target.value})}
+                className="w-full p-2 border rounded-md"
+                placeholder="Notas adicionales sobre la inspección..."
+                rows={3}
+              />
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button 
+                onClick={completeInspection}
+                className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Completar Inspección
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render the inspection details view
+  const renderInspectionDetails = () => {
+    if (!currentInspection) return null;
+
+    const vehicle = vehicles.find(v => v.id === currentInspection.vehicleId);
+    const passedItems = currentInspection.items.filter(item => item.status === 'pass').length;
+    const failedItems = currentInspection.items.filter(item => item.status === 'fail').length;
+    const technicalItems = currentInspection.items.filter(item => item.category === 'technical');
+    const safetyItems = currentInspection.items.filter(item => item.category === 'safety');
+    const legalItems = currentInspection.items.filter(item => item.category === 'legal');
+    
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Detalles de la Inspección</h1>
+          <button 
+            onClick={() => setView('list')}
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Volver a la lista
+          </button>
+        </div>
+
+        <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <h2 className="text-lg font-medium text-gray-900 mb-2">Información del Vehículo</h2>
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <p className="flex items-center text-gray-700 mb-2">
+                    <Car className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Vehículo:</span> {vehicle?.name}
+                  </p>
+                  <p className="flex items-center text-gray-700 mb-2">
+                    <FileText className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Placa:</span> {vehicle?.licensePlate}
+                  </p>
+                  <p className="flex items-center text-gray-700">
+                    <FileText className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Tipo:</span> {vehicle?.type}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <h2 className="text-lg font-medium text-gray-900 mb-2">Información de la Inspección</h2>
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <p className="flex items-center text-gray-700 mb-2">
+                    <Calendar className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Fecha:</span> {formatDate(currentInspection.date)}
+                  </p>
+                  <p className="flex items-center text-gray-700 mb-2">
+                    <User className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Inspector:</span> {currentInspection.inspector}
+                  </p>
+                  <p className="flex items-center text-gray-700 mb-2">
+                    <Clock className="mr-2 h-5 w-5 text-gray-500" />
+                    <span className="font-medium">Hora de inicio:</span> {currentInspection.startTime}
+                  </p>
+                  {currentInspection.endTime && (
+                    <p className="flex items-center text-gray-700">
+                      <Clock className="mr-2 h-5 w-5 text-gray-500" />
+                      <span className="font-medium">Hora de finalización:</span> {currentInspection.endTime}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-2">Resumen</h2>
+              <div className="bg-gray-50 p-4 rounded-md">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <p className="text-gray-500 text-sm">Total de elementos</p>
+                    <p className="text-2xl font-bold text-gray-800">{currentInspection.items.length}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-gray-500 text-sm">Aprobados</p>
+                    <p className="text-2xl font-bold text-green-600">{passedItems}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-gray-500 text-sm">Fallos</p>
+                    <p className="text-2xl font-bold text-red-600">{failedItems}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Technical-Mechanical Results */}
+            <div className="mb-8">
+              <div className="flex items-center mb-4">
+                <Car className="mr-2 h-6 w-6 text-blue-600" />
+                <h2 className="text-lg font-medium text-blue-800">Resultados Técnico-Mecánicos</h2>
+              </div>
+              <div className="space-y-4 border-l-4 border-blue-200 pl-4">
+                {technicalItems.map(item => (
+                  <div key={item.id} className={`border rounded-md p-4 ${
+                    item.status === 'pass' 
+                      ? 'border-green-200 bg-green-50' 
+                      : item.status === 'fail' 
+                        ? 'border-red-200 bg-red-50' 
+                        : 'border-gray-200'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        item.status === 'pass' 
+                          ? 'bg-green-100 text-green-800' 
+                          : item.status === 'fail' 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {item.status === 'pass' 
+                          ? 'Aprobado' 
+                          : item.status === 'fail' 
+                            ? 'Fallo' 
+                            : 'No revisado'}
+                      </span>
+                    </div>
+                    {item.notes && (
+                      <div className="mt-2 text-sm text-gray-700">
+                        <p className="font-medium">Notas:</p>
+                        <p>{item.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Safety Results */}
+            <div className="mb-8">
+              <div className="flex items-center mb-4">
+                <Heart className="mr-2 h-6 w-6 text-red-600" />
+                <h2 className="text-lg font-medium text-red-800">Resultados de Seguridad y Botiquín</h2>
+              </div>
+              <div className="space-y-4 border-l-4 border-red-200 pl-4">
+                {safetyItems.map(item => (
+                  <div key={item.id} className={`border rounded-md p-4 ${
+                    item.status === 'pass' 
+                      ? 'border-green-200 bg-green-50' 
+                      : item.status === 'fail' 
+                        ? 'border-red-200 bg-red-50' 
+                        : 'border-gray-200'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        item.status === 'pass' 
+                          ? 'bg-green-100 text-green-800' 
+                          : item.status === 'fail' 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {item.status === 'pass' 
+                          ? 'Aprobado' 
+                          : item.status === 'fail' 
+                            ? 'Fallo' 
+                            : 'No revisado'}
+                      </span>
+                    </div>
+                    {item.notes && (
+                      <div className="mt-2 text-sm text-gray-700">
+                        <p className="font-medium">Notas:</p>
+                        <p>{item.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Legal Documentation Results */}
+            <div className="mb-8">
+              <div className="flex items-center mb-4">
+                <Shield className="mr-2 h-6 w-6 text-green-600" />
+                <h2 className="text-lg font-medium text-green-800">Resultados de Documentación Legal</h2>
+              </div>
+              <div className="space-y-4 border-l-4 border-green-200 pl-4">
+                {legalItems.map(item => (
+                  <div key={item.id} className={`border rounded-md p-4 ${
+                    item.status === 'pass' 
+                      ? 'border-green-200 bg-green-50' 
+                      : item.status === 'fail' 
+                        ? 'border-red-200 bg-red-50' 
+                        : 'border-gray-200'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        item.status === 'pass' 
+                          ? 'bg-green-100 text-green-800' 
+                          : item.status === 'fail' 
+                            ? 'bg-red-100 text-red-800' 
+                            : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {item.status === 'pass' 
+                          ? 'Aprobado' 
+                          : item.status === 'fail' 
+                            ? 'Fallo' 
+                            : 'No revisado'}
+                      </span>
+                    </div>
+                    {item.notes && (
+                      <div className="mt-2 text-sm text-gray-700">
+                        <p className="font-medium">Notas:</p>
+                        <p>{item.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {currentInspection.notes && (
+              <div className="mb-6">
+                <h2 className="text-lg font-medium text-gray-900 mb-2">Notas Generales</h2>
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <p className="text-gray-700">{currentInspection.notes}</p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <button 
+                onClick={() => {
+                  window.print();
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Imprimir Informe
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render the vehicles management view
+  const renderVehiclesManagement = () => (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Gestión de Vehículos</h1>
+        <button 
+          onClick={() => setView('list')}
+          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+        >
+          Volver a Inspecciones
+        </button>
+      </div>
+
+      <div className="bg-white shadow-md rounded-lg overflow-hidden mb-6">
+        <div className="p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Agregar Nuevo Vehículo</h2>
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
+            <div>
+              <label htmlFor="vehicleName" className="block text-sm font-medium text-gray-700 mb-1">
+                Nombre del Vehículo *
+              </label>
+              <input
+                type="text"
+                id="vehicleName"
+                value={newVehicle.name}
+                onChange={(e) => setNewVehicle({...newVehicle, name: e.target.value})}
+                className="w-full p-2 border rounded-md"
+                placeholder="Ej: Chevrolet C70"
+              />
+            </div>
+            <div>
+              <label htmlFor="licensePlate" className="block text-sm font-medium text-gray-700 mb-1">
+                Placa *
+              </label>
+              <input
+                type="text"
+                id="licensePlate"
+                value={newVehicle.licensePlate}
+                onChange={(e) => setNewVehicle({...newVehicle, licensePlate: e.target.value})}
+                className="w-full p-2 border rounded-md"
+                placeholder="Ej: ABC123"
+              />
+            </div>
+            <div>
+              <label htmlFor="vehicleType" className="block text-sm font-medium text-gray-700 mb-1">
+                Tipo *
+              </label>
+              <input
+                type="text"
+                id="vehicleType"
+                value={newVehicle.type}
+                onChange={(e) => setNewVehicle({...newVehicle, type: e.target.value})}
+                className="w-full p-2 border rounded-md"
+                placeholder="Ej: Camion"
+              />
+            </div>
+            <div>
+              <label htmlFor="soatExpiry" className="block text-sm font-medium text-gray-700 mb-1">
+                Vencimiento SOAT
+              </label>
+              <input
+                type="date"
+                id="soatExpiry"
+                value={newVehicle.soatExpiry}
+                onChange={(e) => setNewVehicle({...newVehicle, soatExpiry: e.target.value})}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
+            <div>
+              <label htmlFor="rtmExpiry" className="block text-sm font-medium text-gray-700 mb-1">
+                Vencimiento RTM
+              </label>
+              <input
+                type="date"
+                id="rtmExpiry"
+                value={newVehicle.rtmExpiry}
+                onChange={(e) => setNewVehicle({...newVehicle, rtmExpiry: e.target.value})}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
+            <div className="flex items-end">
+              <button 
+                onClick={addVehicle}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center"
+              >
+                <Plus className="mr-2 h-5 w-5" />
+                Agregar
+              </button>
+            </div>
+          </div>
+          <p className="text-sm text-gray-500">* Campos obligatorios</p>
+        </div>
+      </div>
+
+      <div className="bg-white shadow-md rounded-lg overflow-hidden">
+        <div className="p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Lista de Vehículos</h2>
+          {vehicles.length === 0 ? (
+            <div className="text-center py-10 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No hay vehículos registrados.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Placa</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SOAT</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RTM</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {vehicles.map(vehicle => {
+                    const soatStatus = getDocumentStatus(vehicle.soatExpiry);
+                    const rtmStatus = getDocumentStatus(vehicle.rtmExpiry);
+                    
+                    return (
+                      <tr key={vehicle.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {editingVehicle && editingVehicle.id === vehicle.id ? (
+                            <input
+                              type="text"
+                              value={editingVehicle.name}
+                              onChange={(e) => setEditingVehicle({...editingVehicle, name: e.target.value})}
+                              className="w-full p-2 border rounded-md"
+                            />
+                          ) : (
+                            vehicle.name
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {editingVehicle && editingVehicle.id === vehicle.id ? (
+                            <input
+                              type="text"
+                              value={editingVehicle.licensePlate}
+                              onChange={(e) => setEditingVehicle({...editingVehicle, licensePlate: e.target.value})}
+                              className="w-full p-2 border rounded-md"
+                            />
+                          ) : (
+                            vehicle.licensePlate
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {editingVehicle && editingVehicle.id === vehicle.id ? (
+                            <input
+                              type="text"
+                              value={editingVehicle.type}
+                              onChange={(e) => setEditingVehicle({...editingVehicle, type: e.target.value})}
+                              className="w-full p-2 border rounded-md"
+                            />
+                          ) : (
+                            vehicle.type
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {editingVehicle && editingVehicle.id === vehicle.id ? (
+                            <input
+                              type="date"
+                              value={editingVehicle.soatExpiry || ''}
+                              onChange={(e) => setEditingVehicle({...editingVehicle, soatExpiry: e.target.value})}
+                              className="w-full p-2 border rounded-md"
+                            />
+                          ) : (
+                            <div>
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                soatStatus.status === 'expired' 
+                                  ? 'bg-red-100 text-red-800' 
+                                  : soatStatus.status === 'expiring' 
+                                    ? 'bg-yellow-100 text-yellow-800' 
+                                    : soatStatus.status === 'valid'
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {vehicle.soatExpiry 
+                                  ? new Date(vehicle.soatExpiry).toLocaleDateString('es-ES')
+                                  : 'No registrado'
+                                }
+                              </span>
+                              {soatStatus.status === 'expired' && (
+                                <p className="text-xs text-red-600 mt-1">Vencido</p>
+                              )}
+                              {soatStatus.status === 'expiring' && (
+                                <p className="text-xs text-yellow-600 mt-1">{soatStatus.daysLeft} días</p>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          {editingVehicle && editingVehicle.id === vehicle.id ? (
+                            <input
+                              type="date"
+                              value={editingVehicle.rtmExpiry || ''}
+                              onChange={(e) => setEditingVehicle({...editingVehicle, rtmExpiry: e.target.value})}
+                              className="w-full p-2 border rounded-md"
+                            />
+                          ) : (
+                            <div>
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                rtmStatus.status === 'expired' 
+                                  ? 'bg-red-100 text-red-800' 
+                                  : rtmStatus.status === 'expiring' 
+                                    ? 'bg-yellow-100 text-yellow-800' 
+                                    : rtmStatus.status === 'valid'
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {vehicle.rtmExpiry 
+                                  ? new Date(vehicle.rtmExpiry).toLocaleDateString('es-ES')
+                                  : 'No registrado'
+                                }
+                              </span>
+                              {rtmStatus.status === 'expired' && (
+                                <p className="text-xs text-red-600 mt-1">Vencido</p>
+                              )}
+                              {rtmStatus.status === 'expiring' && (
+                                <p className="text-xs text-yellow-600 mt-1">{rtmStatus.daysLeft} días</p>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {editingVehicle && editingVehicle.id === vehicle.id ? (
+                            <div className="flex space-x-2">
+                              <button 
+                                onClick={updateVehicle}
+                                className="text-green-600 hover:text-green-900"
+                              >
+                                <Save className="h-5 w-5" />
+                              </button>
+                              <button 
+                                onClick={() => setEditingVehicle(null)}
+                                className="text-gray-600 hover:text-gray-900"
+                              >
+                                <X className="h-5 w-5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex space-x-2">
+                              <button 
+                                onClick={() => setEditingVehicle(vehicle)}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                <Edit className="h-5 w-5" />
+                              </button>
+                              <button 
+                                onClick={() => deleteVehicle(vehicle.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <Trash2 className="h-5 w-5" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render the documents management view
+  const renderDocumentsManagement = () => (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Gestión de Documentos</h1>
+        <button 
+          onClick={() => setView('list')}
+          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+        >
+          Volver a Inspecciones
+        </button>
+      </div>
+
+      {renderDocumentAlerts()}
+
+      <div className="bg-white shadow-md rounded-lg overflow-hidden">
+        <div className="p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Estado de Documentos por Vehículo</h2>
+          {vehicles.length === 0 ? (
+            <div className="text-center py-10 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No hay vehículos registrados.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {vehicles.map(vehicle => {
+                const soatStatus = getDocumentStatus(vehicle.soatExpiry);
+                const rtmStatus = getDocumentStatus(vehicle.rtmExpiry);
+                
+                return (
+                  <div key={vehicle.id} className="border rounded-lg p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">{vehicle.name}</h3>
+                        <p className="text-sm text-gray-500">Placa: {vehicle.licensePlate} | Tipo: {vehicle.type}</p>
+                      </div>
+                      <button
+                        onClick={() => setEditingVehicle(vehicle)}
+                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 text-sm"
+                      >
+                        Editar Fechas
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* SOAT Status */}
+                      <div className={`p-4 rounded-lg border-2 ${
+                        soatStatus.status === 'expired' 
+                          ? 'border-red-200 bg-red-50' 
+                          : soatStatus.status === 'expiring' 
+                            ? 'border-yellow-200 bg-yellow-50' 
+                            : soatStatus.status === 'valid'
+                              ? 'border-green-200 bg-green-50'
+                              : 'border-gray-200 bg-gray-50'
+                      }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-gray-900">SOAT</h4>
+                          <Shield className={`h-5 w-5 ${
+                            soatStatus.status === 'expired' 
+                              ? 'text-red-500' 
+                              : soatStatus.status === 'expiring' 
+                                ? 'text-yellow-500' 
+                                : soatStatus.status === 'valid'
+                                  ? 'text-green-500'
+                                  : 'text-gray-500'
+                          }`} />
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          Fecha de vencimiento: {vehicle.soatExpiry 
+                            ? new Date(vehicle.soatExpiry).toLocaleDateString('es-ES')
+                            : 'No registrada'
+                          }
+                        </p>
+                        <p className={`text-sm font-medium ${
+                          soatStatus.status === 'expired' 
+                            ? 'text-red-600' 
+                            : soatStatus.status === 'expiring' 
+                              ? 'text-yellow-600' 
+                              : soatStatus.status === 'valid'
+                                ? 'text-green-600'
+                                : 'text-gray-600'
+                        }`}>
+                          {soatStatus.status === 'expired' 
+                            ? `Vencido hace ${Math.abs(soatStatus.daysLeft)} días`
+                            : soatStatus.status === 'expiring' 
+                              ? `Vence en ${soatStatus.daysLeft} días`
+                              : soatStatus.status === 'valid'
+                                ? `Vigente por ${soatStatus.daysLeft} días`
+                                : 'Fecha no registrada'
+                          }
+                        </p>
+                      </div>
+
+                      {/* RTM Status */}
+                      <div className={`p-4 rounded-lg border-2 ${
+                        rtmStatus.status === 'expired' 
+                          ? 'border-red-200 bg-red-50' 
+                          : rtmStatus.status === 'expiring' 
+                            ? 'border-yellow-200 bg-yellow-50' 
+                            : rtmStatus.status === 'valid'
+                              ? 'border-green-200 bg-green-50'
+                              : 'border-gray-200 bg-gray-50'
+                      }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-gray-900">RTM</h4>
+                          <FileText className={`h-5 w-5 ${
+                            rtmStatus.status === 'expired' 
+                              ? 'text-red-500' 
+                              : rtmStatus.status === 'expiring' 
+                                ? 'text-yellow-500' 
+                                : rtmStatus.status === 'valid'
+                                  ? 'text-green-500'
+                                  : 'text-gray-500'
+                          }`} />
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1">
+                          Fecha de vencimiento: {vehicle.rtmExpiry 
+                            ? new Date(vehicle.rtmExpiry).toLocaleDateString('es-ES')
+                            : 'No registrada'
+                          }
+                        </p>
+                        <p className={`text-sm font-medium ${
+                          rtmStatus.status === 'expired' 
+                            ? 'text-red-600' 
+                            : rtmStatus.status === 'expiring' 
+                              ? 'text-yellow-600' 
+                              : rtmStatus.status === 'valid'
+                                ? 'text-green-600'
+                                : 'text-gray-600'
+                        }`}>
+                          {rtmStatus.status === 'expired' 
+                            ? `Vencido hace ${Math.abs(rtmStatus.daysLeft)} días`
+                            : rtmStatus.status === 'expiring' 
+                              ? `Vence en ${rtmStatus.daysLeft} días`
+                              : rtmStatus.status === 'valid'
+                                ? `Vigente por ${rtmStatus.daysLeft} días`
+                                : 'Fecha no registrada'
+                          }
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Edit Form */}
+                    {editingVehicle && editingVehicle.id === vehicle.id && (
+                      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                        <h4 className="font-medium text-gray-900 mb-3">Actualizar Fechas de Vencimiento</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Vencimiento SOAT
+                            </label>
+                            <input
+                              type="date"
+                              value={editingVehicle.soatExpiry || ''}
+                              onChange={(e) => setEditingVehicle({...editingVehicle, soatExpiry: e.target.value})}
+                              className="w-full p-2 border rounded-md"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Vencimiento RTM
+                            </label>
+                            <input
+                              type="date"
+                              value={editingVehicle.rtmExpiry || ''}
+                              onChange={(e) => setEditingVehicle({...editingVehicle, rtmExpiry: e.target.value})}
+                              className="w-full p-2 border rounded-md"
+                            />
+                          </div>
+                          <div className="flex items-end space-x-2">
+                            <button 
+                              onClick={updateVehicle}
+                              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center"
+                            >
+                              <Save className="mr-2 h-4 w-4" />
+                              Guardar
+                            </button>
+                            <button 
+                              onClick={() => setEditingVehicle(null)}
+                              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center"
+                            >
+                              <X className="mr-2 h-4 w-4" />
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Render the appropriate view
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {view === 'list' && renderInspectionsList()}
+      {view === 'new' && renderNewInspection()}
+      {view === 'detail' && renderInspectionDetails()}
+      {view === 'vehicles' && renderVehiclesManagement()}
+      {view === 'documents' && renderDocumentsManagement()}
+    </div>
+  );
+}
+
+export default App;

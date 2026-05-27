@@ -53,6 +53,14 @@ export const inspectionItems = pgTable("inspection_items", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const sessions = pgTable("sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: text("token").notNull().unique(),
+  userId: varchar("user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({ username: true, password: true });
 export const insertVehicleSchema = createInsertSchema(vehicles).omit({ id: true, createdAt: true });
 export const insertInspectionSchema = createInsertSchema(inspections).omit({ id: true, createdAt: true });

@@ -7,6 +7,9 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  role: text("role").notNull().default("inspector"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const vehicles = pgTable("vehicles", {
@@ -17,6 +20,8 @@ export const vehicles = pgTable("vehicles", {
   soatExpiry: text("soat_expiry"),
   rtmExpiry: text("rtm_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by"),
 });
 
 export const inspections = pgTable("inspections", {
@@ -32,6 +37,8 @@ export const inspections = pgTable("inspections", {
   inspectorSignature: text("inspector_signature"),
   driverSignature: text("driver_signature"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by"),
 });
 
 export const inspectionItems = pgTable("inspection_items", {
@@ -42,6 +49,8 @@ export const inspectionItems = pgTable("inspection_items", {
   notes: text("notes"),
   category: text("category", { enum: ["technical", "safety", "legal"] }).notNull(),
   sortOrder: text("sort_order").default("0"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({ username: true, password: true });

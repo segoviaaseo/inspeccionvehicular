@@ -34,7 +34,7 @@ Reemplaza `[TU-CONTRASEÑA]` con la contraseña del paso 1.
 Una vez desplegado, accede con:
 - URL: https://radpbsxvivbxtilowjzm.netlify.app
 - Usuario: admin
-- Contraseña: segovia2024
+- Contraseña: segovia2026
 
 ## FUNCIONALIDADES DISPONIBLES
 

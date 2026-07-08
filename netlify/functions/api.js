@@ -1,10 +1,4 @@
 var __defProp = Object.defineProperty;
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
-  if (typeof require !== "undefined") return require.apply(this, arguments);
-  throw Error('Dynamic require of "' + x + '" is not supported');
-});
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -92,8 +86,9 @@ var insertInspectionItemSchema = createInsertSchema(inspectionItems).omit({ id: 
 import { eq, desc } from "drizzle-orm";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import ws from "ws";
 var scryptAsync = promisify(scrypt);
-neonConfig.webSocketConstructor = __require("ws");
+neonConfig.webSocketConstructor = ws;
 var db = null;
 function getDb() {
   if (!db) {

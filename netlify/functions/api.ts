@@ -2,13 +2,13 @@ import { drizzle } from "drizzle-orm/neon-serverless";
 import { neonConfig, Pool } from "@neondatabase/serverless";
 import * as schema from "../../shared/schema";
 import { eq, and, desc } from "drizzle-orm";
-import crypto from "crypto";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
 const scryptAsync = promisify(scrypt);
 
-neonConfig.webSocketConstructor = require("ws");
+import ws from "ws";
+neonConfig.webSocketConstructor = ws;
 
 // Database connection
 let db: ReturnType<typeof drizzle> | null = null;

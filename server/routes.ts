@@ -4,6 +4,8 @@ import { z } from "zod";
 import * as storage from "./storage";
 import { insertVehicleSchema, insertInspectionSchema } from "@shared/schema";
 import { getUserByUsername, verifyPassword } from "./auth";
+import { generateInspectionPdf, buildInspectionFileName } from "./pdf-generator";
+import { backupInspectionPdf, isDriveBackupEnabled } from "./drive-backup";
 
 declare module "express-session" {
   interface SessionData {
@@ -159,9 +161,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const schema = insertInspectionSchema.partial();
       const data = schema.parse(req.body);
+      const wasJustCompleted = data.completed === true;
       const insp = await storage.updateInspection(req.params.id, data);
       if (!insp) return res.status(404).json({ error: "Inspección no encontrada" });
       res.json(insp);
+
+      // Fire-and-forget backup to Google Drive when an inspection is completed.
+      // Failures are logged but never affect the API response.
+      if (wasJustCompleted && isDriveBackupEnabled()) {
+        void (async () => {
+          try {
+            const full = await storage.getInspectionById(insp.id);
+            if (!full) return;
+            const vehicle = await storage.getVehicleById(full.vehicleId);
+            const pdf = generateInspectionPdf(full, vehicle);
+            const fileName = buildInspectionFileName(full, vehicle);
+            await backupInspectionPdf(pdf, fileName, full.date);
+          } catch (err) {
+            console.error("[Backup] Error al respaldar inspección en Drive:", err);
+          }
+        })();
+      }
     } catch (e: any) {
       if (e instanceof z.ZodError) return res.status(400).json({ error: e.errors });
       res.status(500).json({ error: e.message });
